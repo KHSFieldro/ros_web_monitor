@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ROS Topic Browser</title>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2196F3;
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --border-color: #dddddd;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;    
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            padding: 0px;
+        }
+
+        .header-left {      
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 0px;
+        }
+
+        .left-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0px;
+        }
+
+        .right-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .status-bar {
+            width: fit-content;
+            min-width: 200px;
+            margin: 0 0 0 -10px;
+            padding: 8px 20px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 14px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .status-connected {
+            background-color: #4CAF50;
+            color: white;
+            width: fit-content;
+            margin-left: 0;  /* 왼쪽 정렬 */
+            border-radius: 20px;  /* 둥근 모서리 */
+            padding: 8px 20px;
+            width: fit-content;
+        }
+
+        .status-error {
+            background-color: #f44336;
+            color: white;
+            width: fit-content;
+            margin-left: 0;  /* 왼쪽 정렬 */
+            border-radius: 20px;  /* 둥근 모서리 */
+            padding: 8px 20px;
+            width: fit-content;
+        }
+
+        .topic-list {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .topic-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .topic-table th, .topic-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .topic-table th {
+            background-color: #f5f5f5;
+        }
+
+        .topic-row:hover {
+            background-color: #f8f9fa;
+        }
+
+        .topic-message {
+            font-family: 'Consolas', monospace;
+            white-space: pre;
+            overflow-x: auto;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 500px;
+            border: 1px solid #e9ecef;
+        }
+
+        .search-box {
+            padding: 8px;
+            width: 100%;
+            max-width: 300px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .message-yaml {
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .indent {
+            padding-left: 20px;
+        }
+
+        .bookmarked-topics {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+
+        .topic-checkbox {
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .bookmark-star {
+            cursor: pointer;
+            color: #ccc;
+            margin-right: 10px;
+        }
+
+        .bookmark-star.active {
+            color: #ffd700;
+        }
+
+        .section-title {
+            margin: 10px 15px;
+            padding: 10px 0;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .controls-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .toggle-container {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .toggle-group {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          justify-content: flex-end;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            margin: 0 0px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        .control-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .control-label {
+            font-size: 14px;
+            color: var(--text-color);
+            white-space: nowrap;
+        }
+
+        .search-box {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .search-box-container {
+            margin-top: 30px;  /* 상단 여백 추가 */
+            margin-bottom: 10px;    
+        }
+
+        :root {
+            /* Light theme */
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --border-color: #dddddd;
+            --table-header-bg: #f5f5f5;
+            --table-hover-bg: #f8f9fa;
+            --message-bg: #f8f9fa;
+            --bookmarked-bg: #f8f9fa;
+        }
+
+        [data-theme="dark"] {
+            /* Dark theme */
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --border-color: #404040;
+            --table-header-bg: #2d2d2d;
+            --table-hover-bg: #2d2d2d;
+            --message-bg: #2d2d2d;
+            --bookmarked-bg: #2d2d2d;
+        }
+
+        /* 기존 스타일 수정 */
+        .topic-table th {
+            background-color: var(--table-header-bg);
+            color: var(--text-color);
+        }
+
+        .topic-row:hover {
+            background-color: var(--table-hover-bg);
+        }
+
+        .topic-message {
+            background-color: var(--message-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        .status-bar {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .status-connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .status-error {
+            background-color: #f44336;
+            color: white;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .bookmarked-topics {
+            background-color: var(--bookmarked-bg);
+            border: 1px solid var(--border-color);
+        }
+
+        .topic-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            color: var(--text-color);
+        }
+
+        .topic-table th, .topic-table td {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+        }
+
+        .topic-table th {
+            background-color: var(--table-header-bg);
+        }
+
+        .section-title {
+            color: var(--text-color);
+        }
+
+        .search-box {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .control-label {
+            color: var(--text-color);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-section">
+        <div class="left-section">
+            <h1>ROS Topic Browser</h1>
+            <div id="connectionStatus" class="status-bar"></div>
+        </div>
+        <div class="right-section">
+            <div class="search-box-container">
+                <input type="text" class="search-box" id="topicSearch" placeholder="Search Topics...">
+            </div>
+            <div class="toggle-container">
+                <div class="toggle-group">
+                    <span class="control-label">Hide System Topic</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="hideSystemTopics" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="toggle-group">
+                    <span class="control-label">Dark Mode</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="darkModeToggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+        
+        <!-- 북마크된 토픽 섹션 -->
+        <div class="bookmarked-topics">
+            <h2 class="section-title">⭐ Bookmark Topics</h2>
+            <div id="bookmarkedTopics"></div>
+        </div>
+
+        <!-- 전체 토픽 섹션 -->
+        <div class="topic-list">
+            <h2 class="section-title">Total Topic List</h2>
+            <table class="topic-table">
+                <thead>
+                    <tr>
+                        <th>Topic</th>
+                        <th>Type</th>
+                        <th>Message</th>
+                        <th>Frequency</th>
+                        <th>Bookmark</th>
+                    </tr>
+                </thead>
+                <tbody id="topicTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수 정리
+        let ros;
+        let topicData = new Map();
+        let bookmarkedTopics = new Set();
+
+        // 시스템 토픽 정의
+        const SYSTEM_TOPICS = new Set([
+            '/rosout',
+            '/rosout_agg',
+            '/connected_clients',
+            '/client_count'
+        ]);
+
+        // 즐겨찾기 관리 함수
+        function loadBookmarks() {
+            const saved = localStorage.getItem('bookmarkedTopics');
+            if (saved) {
+                bookmarkedTopics = new Set(JSON.parse(saved));
+                console.log('Loaded bookmarks:', bookmarkedTopics);
+            }
+        }
+
+        function saveBookmarks() {
+            localStorage.setItem('bookmarkedTopics', 
+                JSON.stringify(Array.from(bookmarkedTopics)));
+            console.log('Saved bookmarks:', bookmarkedTopics);
+        }
+
+        function toggleBookmark(topicName) {
+            console.log('Toggling bookmark for:', topicName);
+            if (bookmarkedTopics.has(topicName)) {
+                bookmarkedTopics.delete(topicName);
+            } else {
+                bookmarkedTopics.add(topicName);
+            }
+            saveBookmarks();
+            updateTables();
+        }
+
+        function updateTables() {
+            updateBookmarkedTable();
+            updateMainTable();
+        }
+
+        function updateBookmarkedTable() {
+            const bookmarkedDiv = document.getElementById('bookmark Topics');
+            if (bookmarkedTopics.size === 0) {
+                bookmarkedDiv.innerHTML = '<p>There is no Bookmark Topics</p>';
+                return;
+            }
+
+            let html = `
+                <table class="topic-table">
+                    <thead>
+                        <tr>
+                            <th>Topic</th>
+                            <th>Type</th>
+                            <th>Message</th>
+                            <th>Frequency</th>
+                            <th>Bookmark</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (const topicName of bookmarkedTopics) {
+                const data = topicData.get(topicName);
+                if (data) {
+                    html += createTableRow(topicName, data, true);
+                }
+            }
+
+            html += '</tbody></table>';
+            bookmarkedDiv.innerHTML = html;
+        }
+
+        function updateMainTable() {
+            const mainTableBody = document.getElementById('topicTableBody');
+            let html = '';
+            
+            for (const [topicName, data] of topicData) {
+                if (shouldShowTopic(topicName)) {
+                    html += createTableRow(topicName, data, bookmarkedTopics.has(topicName));
+                }
+            }
+            
+            mainTableBody.innerHTML = html;
+        }
+
+        function createTableRow(topicName, data, isBookmarked) {
+            return `
+                <tr class="topic-row">
+                    <td>${topicName}</td>
+                    <td>${data.type || 'Loading...'}</td>
+                    <td class="topic-message">${data.message || 'Waiting...'}</td>
+                    <td>${data.frequency || 0} Hz</td>
+                    <td>
+                        <span class="bookmark-star ${isBookmarked ? 'active' : ''}" 
+                              onclick="toggleBookmark('${topicName.replace(/'/g, "\\'")}')">
+                            ${isBookmarked ? '⭐' : '☆'}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // 토픽 표시 여부 결정 함수 수정
+        function shouldShowTopic(topicName) {
+            const hideSystem = document.getElementById('hideSystemTopics').checked;
+            const searchTerm = document.getElementById('topicSearch')?.value?.toLowerCase() || '';
+            
+            if (hideSystem && SYSTEM_TOPICS.has(topicName)) {
+                return false;
+            }
+            
+            return topicName.toLowerCase().includes(searchTerm);
+        }
+
+        // 토픽 필터링 함수 개선
+        function shouldShowTopic(topicName) {
+            const hideSystem = document.getElementById('hideSystemTopics').checked;
+            if (hideSystem && SYSTEM_TOPICS.has(topicName)) {
+                return false;
+            }
+            const searchTerm = document.getElementById('topicSearch')?.value?.toLowerCase() || '';
+            return topicName.toLowerCase().includes(searchTerm);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 디버깅을 위한 로그 활성화
+            const DEBUG = true;
+            function log(msg) {
+                if (DEBUG) console.log(msg);
+            }
+
+            ros = new ROSLIB.Ros({
+                url: 'ws://localhost:9090'
+            });
+
+            const INACTIVE_TIMEOUT = 2000; // 2초
+            let activeTopics = new Set();
+
+            function checkPublishers(topicName) {
+                // 발행자 정보 확인
+                ros.getPublishers(topicName, (publishers) => {
+                    if (publishers.length === 0) {
+                        console.log(`No publishers for ${topicN}ame}, removing...`);
+                        topicData.delete(topicName);
+                        refreshTable();
+                    }
+                });
+            }
+
+            function getTopicInfo(topicName, callback) {
+                ros.getTopicType(topicName, (type) => {
+                    log(`Topic ${topicName} type: ${type}`);
+                    callback(type);
+                });
+            }
+
+            function formatMessage(message) {
+                try {
+                    const msgObj = typeof message === 'string' ? JSON.parse(message) : message;
+                    return formatObject(msgObj, 0);
+                } catch (e) {
+                    return message;
+                }
+            }
+
+            function formatObject(obj, depth) {
+                if (obj === null || obj === undefined) return 'null';
+                
+                const indent = '  '.repeat(depth);
+                let result = '';
+
+                if (Array.isArray(obj)) {
+                    if (obj.length === 0) return '[]';
+                    result = '[\n';
+                    obj.forEach((item, index) => {
+                        result += `${indent}  ${formatObject(item, depth + 1)}`;
+                        if (index < obj.length - 1) result += ',';
+                        result += '\n';
+                    });
+                    result += `${indent}]`;
+                } else if (typeof obj === 'object') {
+                    const entries = Object.entries(obj);
+                    if (entries.length === 0) return '{}';
+                    
+                    entries.forEach(([key, value], index) => {
+                        if (index === 0) result += '\n';
+                        result += `${indent}${key}: `;
+                        if (typeof value === 'object' && value !== null) {
+                            result += formatObject(value, depth + 1);
+                        } else {
+                            result += value;
+                        }
+                        result += '\n';
+                    });
+                } else {
+                    return obj.toString();
+                }
+                
+                return result;
+            }
+
+            function formatMessageToYAML(message, indent = '') {
+                if (typeof message !== 'object' || message === null) {
+                    return `${indent}${message}`;
+                }
+
+                let yaml = '';
+                for (const [key, value] of Object.entries(message)) {
+                    if (typeof value === 'object' && value !== null) {
+                        yaml += `${indent}${key}:\n${formatMessageToYAML(value, indent + '  ')}`;
+                    } else {
+                        yaml += `${indent}${key}: ${value}\n`;
+                    }
+                }
+                return yaml;
+            }
+
+            // 토픽 구독 함수 수정
+            function subscribeToTopic(topicName) {
+                ros.getTopicType(topicName, (messageType) => {
+                    const topic = new ROSLIB.Topic({
+                        ros: ros,
+                        name: topicName,
+                        messageType: messageType
+                    });
+
+                    topicData.set(topicName, {
+                        type: messageType,
+                        message: 'Waiting...',
+                        frequency: 0,
+                        lastUpdate: Date.now()
+                    });
+
+                    topic.subscribe((message) => {
+                        const data = topicData.get(topicName);
+                        if (data) {
+                            data.message = formatMessage(message);
+                            data.lastUpdate = Date.now();
+                            refreshTable();
+                        }
+                    });
+                });
+            }
+
+            // 토픽 업데이트 함수 수정
+            function updateTopicList() {
+                ros.getTopics((result) => {
+                    const currentTopics = new Set(result.topics);
+                    
+                    // 새로운 토픽 추가
+                    currentTopics.forEach(topicName => {
+                        if (!topicData.has(topicName)) {
+                            subscribeToTopic(topicName);
+                        }
+                    });
+
+                    // 제거된 토픽 정리
+                    for (const topicName of topicData.keys()) {
+                        if (!currentTopics.has(topicName)) {
+                            topicData.delete(topicName);
+                        }
+                    }
+
+                    refreshTable();
+                });
+            }
+
+            // 북마크 관리
+            // 테이블 새로고침 함수 수정
+            function refreshTable() {
+                const mainTableBody = document.getElementById('topicTableBody');
+                const bookmarkedDiv = document.getElementById('bookmarkedTopics');
+                let mainHtml = '';
+                let bookmarkedHtml = `
+                    <table class="topic-table">
+                        <thead>
+                            <tr>
+                                <th>Topic</th>
+                                <th>Type</th>
+                                <th>Message</th>
+                                <th>Frequency</th>
+                                <th>Bookmark</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                // 토픽 필터링 및 표시
+                for (const [topicName, data] of topicData) {
+                    if (shouldShowTopic(topicName)) {
+                        const row = createTableRow(topicName, data, bookmarkedTopics.has(topicName));
+                        mainHtml += row;
+                        if (bookmarkedTopics.has(topicName)) {
+                            bookmarkedHtml += row;
+                        }
+                    }
+                }
+
+                bookmarkedHtml += '</tbody></table>';
+                bookmarkedDiv.innerHTML = bookmarkedTopics.size > 0 ? 
+                    bookmarkedHtml : '<p>⠀⠀⠀⠀There is no Bookmark Topics</p>';
+                mainTableBody.innerHTML = mainHtml;
+            }
+
+            function formatMessage(message) {
+                try {
+                    const msgObj = typeof message === 'string' ? JSON.parse(message) : message;
+                    return Object.entries(msgObj)
+                        .map(([key, value]) => `${key}:\n  ${JSON.stringify(value, null, 2)}`)
+                        .join('\n');
+                } catch (e) {
+                    return message;
+                }
+            }
+
+            // 주기적 업데이트
+            setInterval(updateTopicList, 1000);
+            loadBookmarks();  // 초기 로드
+
+            document.getElementById('hideSystemTopics').addEventListener('change', () => {
+                updateTables();
+            });
+
+            // 다크모드 설정
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            
+            // 저장된 테마 불러오기
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            darkModeToggle.checked = savedTheme === 'dark';
+
+            // 테마 토글 이벤트
+            darkModeToggle.addEventListener('change', (e) => {
+                const theme = e.target.checked ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+            });
+
+            // ROS 연결 상태 표시
+            ros.on('connection', () => {
+                document.getElementById('connectionStatus').innerHTML = 
+                    '<div class="status-connected">ROS Connected</div>';
+                startTopicUpdates();
+            });
+
+            ros.on('error', (error) => {
+                document.getElementById('connectionStatus').innerHTML = 
+                    `<div class="status-error">Connection Error: ${error}</div>`;
+            });
+
+            ros.on('close', () => {
+                document.getElementById('connectionStatus').innerHTML = 
+                    '<div class="status-error">Connection Finish</div>';
+            });
+        });
+
+        // DOMContentLoaded 이벤트 핸들러 통합
+        document.addEventListener('DOMContentLoaded', () => {
+            // 다크모드 초기화
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.getElementById('darkModeToggle').checked = savedTheme === 'dark';
+
+            // 시스템 토픽 숨기기 초기화
+            const hideSystemTopics = document.getElementById('hideSystemTopics');
+            const savedHideSystem = localStorage.getItem('hideSystemTopics');
+            
+            if (savedHideSystem === null) {
+                hideSystemTopics.checked = true;
+                localStorage.setItem('hideSystemTopics', 'true');
+            } else {
+                hideSystemTopics.checked = savedHideSystem === 'true';
+            }
+
+            // 이벤트 리스너 설정
+            hideSystemTopics.addEventListener('change', (e) => {
+                localStorage.setItem('hideSystemTopics', e.target.checked);
+                updateTables();
+            });
+
+            document.getElementById('darkModeToggle').addEventListener('change', (e) => {
+                const theme = e.target.checked ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+            });
+
+            // ROS 연결 설정
+            ros = new ROSLIB.Ros({
+                url: 'ws://localhost:9090'
+            });
+
+            // 연결 상태 핸들러
+            ros.on('connection', () => {
+                document.getElementById('connectionStatus').innerHTML = 
+                    '<div class="status-connected">ROS Connected</div>';
+                updateTopicList();
+            });
+
+            // 초기 업데이트
+            loadBookmarks();
+            updateTables();
+        });
+    </script>
+</body>
+</html>
