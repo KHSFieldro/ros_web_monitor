@@ -654,18 +654,49 @@
                         type: messageType,
                         message: 'Waiting...',
                         frequency: 0,
-                        lastUpdate: Date.now()
+                        messageCount: 0,
+                        lastUpdate: Date.now(),
+                        messageWindow: [],  // 메시지 타임스탬프를 저장할 배열
+                        windowStart: Date.now()  // 윈도우 시작 시간
                     });
 
                     topic.subscribe((message) => {
                         const data = topicData.get(topicName);
                         if (data) {
+                            const now = Date.now();
+                            const window = 1000; // 1초 윈도우
+
+                            // 1초 이내의 메시지만 유지
+                            data.messageWindow = [
+                                ...data.messageWindow.filter(time => (now - time) < window),
+                                now
+                            ];
+
+                            // 정확한 주파수 계산
+                            if (now - data.windowStart >= window) {
+                                data.frequency = Math.round((data.messageWindow.length / window) * 1000 * 10) / 10;
+                                data.windowStart = now;
+                            }
+
                             data.message = formatMessage(message);
-                            data.lastUpdate = Date.now();
+                            data.lastUpdate = now;
+                            
                             refreshTable();
                         }
                     });
                 });
+            }
+
+            // 주기적인 빈도 업데이트
+            function updateFrequencies() {
+                const now = Date.now();
+                for (const [topicName, data] of topicData.entries()) {
+                    // 1초 이상 메시지가 없으면 0Hz로 표시
+                    if (now - data.lastUpdate > 1000) {
+                        data.frequency = 0;
+                    }
+                }
+                refreshTable();
             }
 
             // 토픽 업데이트 함수 수정
@@ -766,7 +797,14 @@
             ros.on('connection', () => {
                 document.getElementById('connectionStatus').innerHTML = 
                     '<div class="status-connected">ROS Connected</div>';
-                startTopicUpdates();
+                
+                // 연결 즉시 토픽 목록 가져오기
+                updateTopicList();
+                
+                // 주기적 업데이트 시작
+                setInterval(() => {
+                    updateTopicList();
+                }, 1000);
             });
 
             ros.on('error', (error) => {
@@ -825,6 +863,10 @@
             // 초기 업데이트
             loadBookmarks();
             updateTables();
+
+            
+            // 주기적인 빈도 업데이트 (500ms마다)   
+            setInterval(updateFrequencies, 500);
         });
     </script>
 </body>

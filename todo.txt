@@ -1,4 +1,8 @@
 - 25.01.01
+  3. Topic 발행 주기 표시 수정
+  4. Server 시작 전 발행되고 있던 Topic Update 기능 추가
+
+2198a9a - 25.01.01
   2.  readme.md Web Page Image 추가
 
 5511de0 - 25.01.01

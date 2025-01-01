@@ -45,17 +45,17 @@ roscore
 roslaunch rosbridge_server rosbridge_websocket.launch
 
 # Terminal 3
-cd ~/topic_browser/src/ros_web_monitor/web
+cd src/ros_web_monitor/web
 python3 -m http.server 8081
 ```
 
 ### 방법 2: 스크립트 실행
 ```bash
 # 스크립트 실행 권한 설정
-chmod +x ~/topic_browser/src/ros_web_monitor/scripts/start_monitor.sh
+chmod +x src/ros_web_monitor/scripts/start_monitor.sh
 
 # 스크립트 실행
-~/topic_browser/src/ros_web_monitor/scripts/start_monitor.sh
+src/ros_web_monitor/scripts/start_monitor.sh
 ```
 
 ## 5. 사용자 인터페이스
