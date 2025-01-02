@@ -1,4 +1,8 @@
-- 25.01.01
+- 25.01.02
+  1.  start_monitor.sh 작업 디렉토리 상대 경로로 변경
+  2.  styles.css, config.js 파일 생성 및 style관련 코드, system topic 관련 코드 이전
+
+5da6038 - 25.01.01
   3. Topic 발행 주기 표시 수정
   4. Server 시작 전 발행되고 있던 Topic Update 기능 추가
 

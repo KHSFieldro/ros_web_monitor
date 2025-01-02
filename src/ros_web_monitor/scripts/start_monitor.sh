@@ -5,7 +5,8 @@
 # source ~/Dev/topic_browser/devel/setup.bash
 
 # 현재 작업 디렉토리 설정
-cd ~/Dev/topic_browser/src/ros_web_monitor/web
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "${SCRIPT_DIR}/../web"
 
 # rosbridge 서버 실행 (백그라운드)
 roslaunch rosbridge_server rosbridge_websocket.launch &
